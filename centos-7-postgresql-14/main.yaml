@@ -46,3 +46,26 @@
       service: postgresql
       permanent: yes
       state: enabled
+      
+  - name: Setting the postgresql listening port to *
+    ansible.builtin.lineinfile:
+      path: /var/lib/pgsql/14/data/postgresql.conf
+      line: listen_addresses = '*'
+      create: yes
+
+  - name: Opening remote access for Postgresql
+    ansible.builtin.lineinfile:
+      path: /var/lib/pgsql/14/data/pg_hba.conf
+      line: host    all             all             0.0.0.0/0               md5
+      create: yes
+
+  - name: Opening remote access for Postgresql 2
+    ansible.builtin.lineinfile:
+      path: /var/lib/pgsql/14/data/pg_hba.conf
+      line: host    all             all             ::/0                    md5
+      create: yes
+      
+  - name: Restart the database service
+    service:
+      name: postgresql-14
+      state: restarted
