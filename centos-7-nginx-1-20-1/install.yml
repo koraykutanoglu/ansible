@@ -1,0 +1,17 @@
+---
+- name: nginx install and configuration
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+  - name: epel-release install
+    yum: name=epel-release state=latest
+
+  - name: nginx install
+    yum: name=nginx state=latest
+
+  - name: Start and enable the nginx service
+    service:
+      name: nginx
+      state: started
+      enabled: yes
