@@ -1,0 +1,29 @@
+---
+- name: Tomcat Install STAGE
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+  - name: Update packages
+    yum: name=* state=latest
+
+  - name: tomcat install
+    yum: name=tomcat-7.0.76-16.el7_9.noarch state=present
+
+  - name: Add the following JAVA_OPTS line tomcat.conf file.
+    ansible.builtin.lineinfile:
+      path: /usr/share/tomcat/conf/tomcat.conf
+      line: JAVA_OPTS="-Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -Xmx512m -XX:MaxPermSize=256m -XX:+UseConcMarkSweepGC"
+      create: yes
+
+  - name: Tomcat webapps install
+    yum: name=tomcat-webapps-7.0.76-16.el7_9.noarch state=present
+
+  - name: Start and enable the tomcat service
+    service:
+      name: tomcat
+      state: started
+      enabled: yes
+
+  - name: firewalld stop
+    command: systemctl stop firewalld
