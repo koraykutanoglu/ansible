@@ -1,0 +1,28 @@
+---
+- name: MySQL Database installation and configuration
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+  - name: Get the OS platform
+    command: cat /etc/redhat-release
+    register: redhatRelease
+
+  - name: Print the redhat-release
+    debug: msg={{ redhatRelease.stdout }}
+
+  - name: Update packages
+    yum: name=* state=latest
+
+  - name: MySQL v5.7 Repo Install 
+    shell: rpm -ivh http://repo.mysql.com/mysql57-community-release-el7.rpm
+    ignore_errors: yes
+
+  - name: MySQL Repo Key İmport 
+    command: rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+  - name: Update packages
+    yum: name=* state=latest
+
+  - name: MySQL Install
+    yum: name=mysql-community-server.x86_64 state=latest
