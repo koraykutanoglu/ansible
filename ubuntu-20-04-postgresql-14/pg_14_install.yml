@@ -1,5 +1,5 @@
 ---
-- name: Postgre SQL Database installation and configuration
+- name: Postgre SQL Database installation
   hosts: all
   become: true
   become_user: root
@@ -31,21 +31,3 @@
     apt:
       name: postgresql-14
       update_cache: yes
-
-  - name: Setting the postgresql listening port to *
-    ansible.builtin.lineinfile:
-      path: /etc/postgresql/14/main/postgresql.conf
-      line: listen_addresses = '*'
-      create: yes
-
-  - name: Opening remote access for Postgresql
-    ansible.builtin.lineinfile:
-      path: /etc/postgresql/14/main/pg_hba.conf
-      line: host    all             all             0.0.0.0/0               md5
-      create: yes
-
-  - name: Opening remote access for Postgresql 2
-    ansible.builtin.lineinfile:
-      path: /etc/postgresql/14/main/pg_hba.conf
-      line: host    all             all             ::/0                    md5
-      create: yes
