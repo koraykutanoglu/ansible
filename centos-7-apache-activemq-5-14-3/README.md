@@ -1,4 +1,14 @@
-Now, point your web browser to http://203.0.113.1:8161/admin and log in using the default credentials.
+## ActiveMQ Admin Web Interface
 
+After deploying this application with ansible, enter the web interface with the following command:
+
+```
+http://203.0.113.1:8161/admin 
+```
+
+Login information:
+
+```
 username: admin
 password: admin
+```
