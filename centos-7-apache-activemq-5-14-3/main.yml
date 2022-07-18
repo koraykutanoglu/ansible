@@ -1,0 +1,2 @@
+---
+- import_playbook: activemq_install.yml
