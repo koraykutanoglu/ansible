@@ -1,0 +1,57 @@
+---
+- name: ActiveMQ installation
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+  - name: Update packages
+    yum: name=* state=latest
+
+  - name: epel-release install
+    yum: name=epel-release state=latest
+
+  - name: openjdk install
+    yum: name=java-1.8.0-openjdk state=latest
+
+  - name: JAVA configuration
+    command: echo "JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")" | sudo tee -a /etc/profile && source /etc/profile
+
+  - name: Apache activemq file install
+    get_url:
+      url: https://archive.apache.org/dist/activemq/5.14.3/apache-activemq-5.14.3-bin.tar.gz
+      dest: /root
+      mode: '777'
+
+  - name: opening activemq files
+    command: sudo tar -zxvf apache-activemq-5.14.3-bin.tar.gz -C /opt
+
+  - name: Create a symbolic link
+    ansible.builtin.file:
+      src: /opt/apache-activemq-5.14.3
+      dest: /opt/activemq
+      state: link
+
+  - name: Creating the activemq service file
+    copy:
+      dest: "/usr/lib/systemd/system/activemq.service"
+      content: |
+        [Unit]
+        Description=activemq message queue
+        After=network.target
+        [Service]
+        PIDFile=/opt/activemq/data/activemq.pid
+        ExecStart=/opt/activemq/bin/activemq start
+        ExecStop=/opt/activemq/bin/activemq stop
+        User=root
+        Group=root
+        [Install]
+        WantedBy=multi-user.target
+
+  - name: start the activemq service
+    service:
+      name: activemq.service
+      state: started
+      enabled: yes
+
+  - name: firewalld stop
+    command: systemctl stop firewalld
