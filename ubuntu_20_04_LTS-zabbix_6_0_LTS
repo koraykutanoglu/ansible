@@ -1,0 +1,179 @@
+---
+- name: Zabbix install
+  hosts: all
+  become: true
+  become_user: root
+  vars:
+    database_name: "zabbix"
+    database_username: "zabbix"
+    database_password: "7c642U7frI5KppwSnD3"
+    nginx_listen_port: "80"
+    nginx_server_name_or_ip: "10.10.10.100"
+  tasks:
+  - name: Update apt-get repo and cache
+    apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+
+  - name: Upgrade all apt packages
+    apt: upgrade=dist force_apt_get=yes
+
+  - name: Install Zabbix repository
+    ansible.builtin.apt:
+      deb: https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.0-3+ubuntu20.04_all.deb
+
+  - name: Install Zabbix, nginx conf, agent
+    apt:
+      pkg:
+        - zabbix-server-mysql
+        - zabbix-frontend-php
+        - zabbix-nginx-conf
+        - zabbix-sql-scripts
+        - zabbix-agent 
+        - mysql-client
+        - mysql-server
+      state: latest
+      update_cache: true
+
+  - name: Create Database
+    command: mysql -u 'root' -e "create database {{ database_name }} character set utf8mb4 collate utf8mb4_bin;"
+
+  - name: Create User
+    command: mysql -u 'root' -e "create user "{{ database_username }}"@localhost identified by '{{ database_password }}';"
+
+  - name: Grant all privileges
+    command: mysql -u 'root' -e "grant all privileges on {{ database_name }}.* to {{ database_username }}@localhost;"
+
+  - name: On Zabbix server host import initial schema and data.
+    command: gunzip -d  /usr/share/doc/zabbix-sql-scripts/mysql/server.sql.gz
+
+  - name: "Install ansible python3 mysql dependency"
+    apt:
+      name: python3-mysqldb
+      state: latest
+
+  - name: On Zabbix server host import initial schema and data.
+    mysql_db:
+      name: zabbix
+      state: import
+      target: /usr/share/doc/zabbix-sql-scripts/mysql/server.sql
+
+  - name: Setting the Zabbix server conf
+    ansible.builtin.lineinfile:
+      path: /etc/zabbix/zabbix_server.conf
+      line: DBPassword={{ database_password }}
+      create: yes
+
+  - name: Remove the nginx.conf
+    ansible.builtin.file:
+      path: /etc/zabbix/nginx.conf
+      state: absent
+
+  - name: Create nginx.conf
+    copy:
+      dest: "/etc/zabbix/nginx.conf"
+      content: |
+        server {
+                listen          {{ nginx_listen_port }};
+                server_name     {{ nginx_server_name_or_ip }};
+        
+                root    /usr/share/zabbix;
+        
+                index   index.php;
+        
+                location = /favicon.ico {
+                        log_not_found   off;
+                }
+        
+                location / {
+                        try_files       $uri $uri/ =404;
+                }
+        
+                location /assets {
+                        access_log      off;
+                        expires         10d;
+                }
+        
+                location ~ /\.ht {
+                        deny            all;
+                }
+        
+                location ~ /(api\/|conf[^\.]|include|locale) {
+                        deny            all;
+                        return          404;
+                }
+        
+                location /vendor {
+                        deny            all;
+                        return          404;
+                }
+        
+                location ~ [^/]\.php(/|$) {
+                        fastcgi_pass    unix:/var/run/php/zabbix.sock;
+                        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                        fastcgi_index   index.php;
+        
+                        fastcgi_param   DOCUMENT_ROOT   /usr/share/zabbix;
+                        fastcgi_param   SCRIPT_FILENAME /usr/share/zabbix$fastcgi_script_name;
+                        fastcgi_param   PATH_TRANSLATED /usr/share/zabbix$fastcgi_script_name;
+        
+                        include fastcgi_params;
+                        fastcgi_param   QUERY_STRING    $query_string;
+                        fastcgi_param   REQUEST_METHOD  $request_method;
+                        fastcgi_param   CONTENT_TYPE    $content_type;
+                        fastcgi_param   CONTENT_LENGTH  $content_length;
+        
+                        fastcgi_intercept_errors        on;
+                        fastcgi_ignore_client_abort     off;
+                        fastcgi_connect_timeout         60;
+                        fastcgi_send_timeout            180;
+                        fastcgi_read_timeout            180;
+                        fastcgi_buffer_size             128k;
+                        fastcgi_buffers                 4 256k;
+                        fastcgi_busy_buffers_size       256k;
+                        fastcgi_temp_file_write_size    256k;
+                }
+        }
+
+  - name: apache is stopped
+    ansible.builtin.service:
+      name: apache2.service
+      state: stopped
+
+  - name: zabbix-server is restarted
+    ansible.builtin.service:
+      name: zabbix-server
+      state: restarted
+
+  - name: zabbix-agent is restarted
+    ansible.builtin.service:
+      name: zabbix-agent
+      state: restarted
+
+  - name: nginx is restarted
+    ansible.builtin.service:
+      name: nginx 
+      state: restarted
+
+  - name: php7.4-fpm is restarted
+    ansible.builtin.service:
+      name: php7.4-fpm
+      state: restarted
+
+  - name: zabbix-server is enabled
+    ansible.builtin.service:
+      name: zabbix-server
+      enabled: yes
+
+  - name: zabbix-agent is enabled
+    ansible.builtin.service:
+      name: zabbix-agent
+      enabled: yes
+
+  - name: nginx is enabled
+    ansible.builtin.service:
+      name: nginx
+      enabled: yes
+
+  - name: php7.4-fpm is enabled
+    ansible.builtin.service:
+      name: php7.4-fpm 
+      enabled: yes
